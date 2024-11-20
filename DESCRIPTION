@@ -1,0 +1,18 @@
+Package: motifDiverge
+Type: Package
+Title: Calculate significance of motif divergence between DNA sequences
+        based on correlated Bernoullil trials
+Version: 0.4.12
+Date: 2015-05-12
+Author: Dennis Kostka
+Maintainer: Dennis Kostka <kostka@pitt.edu>
+Description: Statistically quantify differernces in motif hit counts between two DNA sequences using a model of correlated Binomial trials.
+License: Artistic-2.0
+LazyLoad: yes
+Suggests: knitr
+Imports: BiocGenerics, Biostrings, rphast, MotifDb, IRanges, Rcpp (>=
+        0.11.1), RcppGSL, RcppArmadillo (>= 0.4.300.0)
+VignetteBuilder: knitr
+LinkingTo: Rcpp, RcppGSL, RcppArmadillo
+NeedsCompilation: yes
+Packaged: 2015-05-12 17:49:37 UTC; dennis

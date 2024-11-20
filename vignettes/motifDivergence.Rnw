@@ -1,0 +1,139 @@
+\documentclass[12pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{setspace}
+\renewcommand{\baselinestretch}{1.1}
+\parindent .0in
+\parskip 6pt
+\usepackage{multirow}
+\usepackage[multidot]{grffile}
+
+% Text layout
+\topmargin 0.0cm
+\oddsidemargin 0.5cm
+\evensidemargin 0.5cm
+\textwidth 16cm
+\textheight 21cm
+
+% Bold the 'Figure #' in the caption and separate it with a period
+% Captions will be left justified
+\usepackage[labelfont=bf,labelsep=period,justification=raggedright]{caption}
+\usepackage{hyperref}
+\pagestyle{myheadings}
+
+%\VignetteEngine{knitr::knitr}
+%\VignetteDepends{knitr}
+
+
+
+%%%%%%%%%%%%%%%%
+\begin{document}
+%%%%%%%%%%%%%%%%
+%- document-defaults:
+<<include=FALSE,echo=FALSE>>=
+  require(knitr)
+  opts_chunk$set(comment=NA, echo=TRUE, tidy=FALSE, eval=TRUE, prompt=TRUE, warning=FALSE)
+@
+
+\section*{Motif divergence between orthologous pairs of enhancer sequences}
+%==========================================================================
+
+This vignette contains  a brief example of how to use the {\tt motifDiverge} package.
+The analysis focuses on a set of five human--mouse orthologous enhancer sequences (from \cite{}),
+and quantifies divergence in terms of the Nkx-2.5 motif.   
+
+{\bf Step 1:}\quad Obtain the sequence pairs, each as a  {\tt DNAStringSet} in {\tt R}.   
+%-------------------------------------------------------------------------------------
+
+<<message=FALSE, warning=FALSE>>=
+require(motifDiverge)
+require(Biostrings)
+require(MotifDb)
+enh.hg.file = system.file( "extdata", "enh_human.fa", 
+			   package="motifDiverge"   )
+enh.mm.file = system.file( "extdata", "enh_mouse.fa", 
+			   package="motifDiverge"   )  
+enh.hg = readDNAStringSet(enh.hg.file)
+enh.mm = readDNAStringSet(enh.mm.file)
+enh.hg
+enh.mm
+@
+
+{\bf Step 2:}\quad Obtain the motif for Nkx-2.5. First get the JASPAR \cite{} position frequency matrix using {\tt
+MotifDb}, and then use this as basis for a position specific score matrix. Also, the frequency matrix is regularized using a pseudocount. 
+%-----------------------------------------------
+
+<<>>=
+providerId = "MA0063.1" #- Jaspar NKX-2.5
+index      = grep(providerId,values(MotifDb)$providerId)
+pspm       = MotifDb[index][[1]]
+pssm       = pspmToPssm(pspm)
+pspm       = pspmToPssm(pspm,return.pspm=TRUE)$pspm
+@
+
+{\bf Step 3:}\quad Next, numerically calculate a score cutoff (for the {\tt pssm}  and its reverse complement, such that the Type I error rate is 1\%. This example uses the observed sequence composition as a null model.
+
+<<>>=
+bg  = colSums(alphabetFrequency(c(enh.hg,enh.mm))[,1:4])
+bg  = bg/sum(bg)
+cut = scoreCutFromErr(err=.01, pssm=pssm, pspm=pspm, bg=bg, type="type1")
+@
+
+{\bf Step 4a:}\quad For each of the sequence pair, calculate the model parameters specifying two correlated Bernoulli trials. This version
+does not assume an evolutionary model and would also be appropriate for non-homologous, independent sequences.
+
+<<>>=
+pars.nomodel = cbernEstimateModelPars(	seqs.x = enh.mm,
+					seqs.y = enh.hg,
+					pssm   = pssm  ,
+					pspm   = pspm  ,
+					cut.fw = cut   ,
+					cut.rc = cut   )  
+@
+
+{\bf Step 4b:}\quad This time estimate model parameters assuming an evolutionary model based on the UCSC conservation track (for instance \url{http://hgdownload.soe.ucsc.edu/goldenPath/hg19/phastCons46way/primates.mod}). The background frequencies are (again, see Step 3) adjusted to reflect the nucleotide composition of the sequences at hand.
+
+<<echo=FALSE>>=
+evo.mod.file = system.file( "extdata", "primates.mod", package="motifDiverge" )
+@
+<<>>=
+require(rphast)
+neutral.mod = get.neutralMod(evo.mod.file)       #- point ucscURL to model
+neutral.mod = mod.backgd.tm(neutral.mod,bg) #- adjust background
+pspm.mods   = get.modList(neutral.mod,pspm) #- models for pspm columns
+pars.model  = cbernEstimateModelPars(  seqs.x    = enh.mm   ,
+                                       seqs.y    = enh.hg   ,
+                                       pssm      = pssm     ,
+                                       pspm      = pspm     ,
+                                       cut.fw    = cut      ,
+                                       cut.rc    = cut      ,
+				       indep     = FALSE    ,
+				       useCounts = FALSE    ,
+				       modList   = pspm.mods)
+@
+
+
+{\bf Step 5:}\quad Calculate enrichment and depletion $p$--values according to the tail probabilities of the model with the estimated parameters:
+
+<<>>=
+pvals.enr = apply(pars.model[,1:6],1,function(x) pcbern(x[1],x[2],x[3],
+							x[4],x[5],x[6],
+							lower.tail=F))
+pvals.dep = apply(pars.model[,1:6],1,function(x) pcbern(x[1],x[2],x[3],
+                                                        x[4],x[5],x[6],
+                                                        lower.tail=T))
+@
+
+The fifth sequence pair shows a significant depletion of Nkx-2.5 motifs in the mouse sequence: Even thought the mouse sequence is longer (8,869bp vs.~7,335bp for human), it has fewer motif instances (53 compared to 66 in human).
+
+
+
+
+
+%%%%%%%%%%%%%%
+\end{document}
+%%%%%%%%%%%%%%
+

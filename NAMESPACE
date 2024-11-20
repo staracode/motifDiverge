@@ -1,0 +1,26 @@
+
+useDynLib(	motifDiverge)
+
+export(		dcbern			,
+		pcbern			,
+		rcbern			,
+		scoreDist		,
+		scoreCutFromErr		,
+		errFromScoreCut		,
+		pscmToPspm		,
+		pspmToPssm		,
+		pscmToPssm		,
+		cbernEstimateModelPars	,
+		get.neutralMod		,
+		get.modList		)
+
+import(		BiocGenerics		,
+		Biostrings		,
+		RcppArmadillo		,
+		RcppGSL			,
+		rphast			,
+		MotifDb			,
+		IRanges			)	
+		
+importFrom(Rcpp, evalCpp)
+	
